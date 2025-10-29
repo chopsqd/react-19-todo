@@ -1,8 +1,9 @@
-import { Suspense, use, useActionState, useOptimistic, useRef } from "react";
+import { Suspense, useActionState, useOptimistic, useRef } from "react";
 import { type User } from "../../shared/api.ts";
 import { ErrorBoundary } from "react-error-boundary";
 import { type CreateUserAction, type DeleteUserAction } from "./actions.ts";
 import { useUsers } from "./use-users.ts";
+import { Link } from "react-router-dom";
 
 /*
   == Render as you fetch pattern ==
@@ -51,8 +52,19 @@ import { useUsers } from "./use-users.ts";
 // const users = use(usersPromise);
 
 /*
-   useOptimistic() -
+   useOptimistic() - мгновенно показывает изменение в UI, пока ждём ответ от сервера
+
+     Принимает:
+    - настоящее состояние
+    - функцию: (настоящее_состояние, новое_временное_значение) => обновлённое_временное_состояние
+
+    Возвращает:
+    - [временное_состояние, запустить_оптимистичное_обновление]
 */
+// const [optimisticUsers, addOptimistic] = useOptimistic(
+//   users,                                     // настоящее состояние
+//   (state, newUser) => [...state, newUser]    // как оно выглядит "сразу"
+// );
 
 export function UsersPage() {
   const { useUsersList, createUserAction, deleteUserAction } = useUsers();
@@ -86,11 +98,6 @@ export function CreateUserForm({
 }: {
   createUserAction: CreateUserAction
 }) {
-  // const [state, dispatch, isPending] = useActionState(
-  //   createUserAction({ refetchUsers }),
-  //   { email: "" }
-  // );
-
   const [state, dispatch, isPending] = useActionState(createUserAction, { email: "" });
 
   const [optimisticState, setOptimisticState] = useOptimistic(state);
@@ -110,11 +117,13 @@ export function CreateUserForm({
       <input
         name="email"
         type="email"
+        disabled={isPending}
         className={"border p-2 rounded"}
         defaultValue={optimisticState.email}
       />
       <button
         className={"bg-blue-500 rounded p-2 text-white disabled:bg-gray-400"}
+        disabled={isPending}
         type={"submit"}
       >
         Add
@@ -153,22 +162,6 @@ export function UserCard({
   user: User,
   deleteUserAction: DeleteUserAction
 }) {
-  // const [isPending, startTransition] = useTransition();
-
-  // const handleDelete = () => {
-  //   // Stale-While-Revalidate
-  //   startTransition(async () => {
-  //     await deleteUser(user.id);
-  //     // Pessimistic update — ждём ответа от сервера, и только потом обновляем UI
-  //     refetchUsers();
-  //   });
-  // };
-
-  // const [state, handleDelete, isPending] = useActionState(
-  //   deleteUserAction({ id: user.id, refetchUsers }),
-  //   {}
-  // );
-
   const [state, handleDelete, isPending] = useActionState(deleteUserAction, {});
 
   return (
@@ -184,6 +177,12 @@ export function UserCard({
           name={"id"}
           value={user.id}
         />
+        <Link
+          to={`/${user.id}/tasks`}
+          className={"bg-blue-500 text-white p-2 rounded disabled:bg-gray-400"}
+        >
+          Tasks
+        </Link>
         <button
           type={"submit"}
           disabled={isPending}

@@ -1,13 +1,10 @@
-import { startTransition, use, useOptimistic, useState } from "react";
-import { fetchUsers, type User } from "../../shared/api.ts";
+import { use, useOptimistic } from "react";
+import { type User } from "../../shared/api.ts";
 import { createUserAction, deleteUserAction } from "./actions.ts";
-
-const defaultUsersPromise = fetchUsers();
+import { useUsersGlobal } from "../../entities/user.tsx";
 
 export function useUsers() {
-  const [usersPromise, setUsersPromise] = useState(defaultUsersPromise);
-  const refetchUsers = () =>
-    startTransition(() => setUsersPromise(fetchUsers()));
+  const { usersPromise, refetchUsers } = useUsersGlobal();
 
   const [createdUsers, optimisticCreate] = useOptimistic(
     [] as User[],
@@ -20,12 +17,12 @@ export function useUsers() {
   );
 
   const useUsersList = () => {
-    const users = use(usersPromise)
+    const users = use(usersPromise);
 
     return users
       .concat(createdUsers)
-      .filter(user => !deletedUsersIds.includes(user.id))
-  }
+      .filter(user => !deletedUsersIds.includes(user.id));
+  };
 
   return {
     createUserAction: createUserAction({ refetchUsers, optimisticCreate }),

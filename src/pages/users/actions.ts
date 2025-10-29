@@ -28,7 +28,7 @@ export function createUserAction({
     }
 
     try {
-      const newUser = { email, id: crypto.randomUUID() };
+      const newUser: User = { email, id: crypto.randomUUID() };
 
       optimisticCreate(newUser);
       await createUser(newUser);
