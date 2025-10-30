@@ -1,26 +1,28 @@
-import { startTransition, Suspense, use, useActionState, useMemo, useState, useTransition } from "react";
+import { Suspense, use, useActionState, useMemo, useTransition } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import type { PaginatedResponse, Task } from "../../shared/api.ts";
 import { useParams } from "react-router-dom";
-import { fetchTasks } from "../../shared/api.ts";
+import type { PaginatedResponse, Task } from "../../shared/api.ts";
 import { createTaskAction, deleteTaskAction } from "./actions.ts";
 import { useUsersGlobal } from "../../entities/user.tsx";
+import { useTasks } from "./useTasks.ts";
+import { useSearch } from "./useSearch.ts";
+import { useSort } from "./useSort.ts";
 
 export function TodoListPage() {
   const { userId = "" } = useParams();
 
-  const [paginatedTasksPromise, setTasksPromise] = useState(() =>
-    fetchTasks({ filters: { userId } })
+  const { paginatedTasksPromise, refetchTasks } = useTasks({ userId });
+
+  const { search, handleChangeSearch } = useSearch("", (title) =>
+    refetchTasks({ title })
   );
 
-  const refetchTasks = () =>
-    startTransition(async () => {
-      const { page } = await paginatedTasksPromise;
-      setTasksPromise(fetchTasks({ filters: { userId }, page }));
-    });
+  const { sort, handleChangeSort } = useSort("asc", (sort) =>
+    refetchTasks({ createdAt: sort as "asc" | "desc" })
+  );
 
-  const onPageChange = (newPage: number) => {
-    setTasksPromise(fetchTasks({ filters: { userId }, page: newPage }));
+  const onPageChange = async (newPage: number) => {
+    refetchTasks({ page: newPage });
   };
 
   // Не создавай новый промис при каждом рендере —
@@ -38,8 +40,26 @@ export function TodoListPage() {
 
       <CreateTaskForm
         userId={userId}
-        refetchTasks={refetchTasks}
+        refetchTasks={() => refetchTasks({})}
       />
+
+      <div className={"flex gap-2"}>
+        <input
+          type="text"
+          value={search}
+          onChange={handleChangeSearch}
+          placeholder={"Search..."}
+          className={"border p-2 rounded"}
+        />
+        <select
+          value={sort}
+          onChange={handleChangeSort}
+          className={"border p-2 rounded"}
+        >
+          <option value="asc">Asc</option>
+          <option value="desc">Desc</option>
+        </select>
+      </div>
 
       <ErrorBoundary
         fallbackRender={(e) => (
