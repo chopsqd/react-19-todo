@@ -1,6 +1,6 @@
-import { startTransition, Suspense, use, useActionState, useMemo, useState } from "react";
+import { startTransition, Suspense, use, useActionState, useMemo, useState, useTransition } from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import type { Task } from "../../shared/api.ts";
+import type { PaginatedResponse, Task } from "../../shared/api.ts";
 import { useParams } from "react-router-dom";
 import { fetchTasks } from "../../shared/api.ts";
 import { createTaskAction, deleteTaskAction } from "./actions.ts";
@@ -14,7 +14,14 @@ export function TodoListPage() {
   );
 
   const refetchTasks = () =>
-    startTransition(() => setTasksPromise(fetchTasks({ filters: { userId } })));
+    startTransition(async () => {
+      const { page } = await paginatedTasksPromise;
+      setTasksPromise(fetchTasks({ filters: { userId }, page }));
+    });
+
+  const onPageChange = (newPage: number) => {
+    setTasksPromise(fetchTasks({ filters: { userId }, page: newPage }));
+  };
 
   // Не создавай новый промис при каждом рендере —
   // используй тот же самый, пока исходный промис не изменился
@@ -46,6 +53,10 @@ export function TodoListPage() {
             refetchTasks={refetchTasks}
             tasksPromise={tasksPromise}
           />
+          <Pagination
+            onPageChange={onPageChange}
+            tasksPaginated={paginatedTasksPromise}
+          />
         </Suspense>
       </ErrorBoundary>
     </main>
@@ -57,6 +68,63 @@ function UserPreview({ userId }: { userId: string }) {
   const users = use(usersPromise);
 
   return <span>{users.find(u => u.id === userId)?.email}</span>;
+}
+
+function Pagination<T>({
+  tasksPaginated,
+  onPageChange
+}: {
+  tasksPaginated: Promise<PaginatedResponse<T>>,
+  onPageChange?: (page: number) => void
+}) {
+  const [isLoading, startTransition] = useTransition();
+  const { page, last, first, next, prev, pages } = use(tasksPaginated);
+
+  const handlePageChange = (page: number) => () => {
+    startTransition(() => onPageChange?.(page));
+  };
+
+  return (
+    <nav className={`${isLoading ? "opacity-50" : ""} flex items-center justify-between`}>
+      <div className={"grid grid-cols-4 gap-2"}>
+        <button
+          disabled={isLoading}
+          onClick={handlePageChange(first)}
+          className={"px-3 py-2 rounded-l"}
+        >
+          First ({first})
+        </button>
+        {prev && (
+          <button
+            disabled={isLoading}
+            onClick={handlePageChange(prev)}
+            className={"px-3 py-2"}
+          >
+            Prev ({prev})
+          </button>
+        )}
+        {next && (
+          <button
+            disabled={isLoading}
+            onClick={handlePageChange(next)}
+            className={"px-3 py-2"}
+          >
+            Next ({next})
+          </button>
+        )}
+        <button
+          disabled={isLoading}
+          onClick={handlePageChange(last)}
+          className={"px-3 py-2 rounded-r"}
+        >
+          Last ({last})
+        </button>
+      </div>
+      <span className={"text-sm"}>
+        Page {page} of {pages}
+      </span>
+    </nav>
+  );
 }
 
 export function CreateTaskForm({

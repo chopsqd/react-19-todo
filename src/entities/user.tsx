@@ -1,4 +1,5 @@
 import { createContext, startTransition, use, useState } from "react";
+import { create } from "zustand/react";
 import type { User } from "../shared/api.ts";
 import { fetchUsers } from "../shared/api.ts";
 
@@ -33,3 +34,16 @@ export function useUsersGlobal() {
 
   return context;
 }
+
+// type UsersState = {
+//   usersPromise: Promise<User[]>,
+//   refetchUsers: () => void
+// }
+//
+// Проблема: startTransition не работает в global state
+// Для таких целей лучше использовать React Context
+// export const useUsersGlobal = create<UsersState>((set) => ({
+//   usersPromise: fetchUsers(),
+//   refetchUsers: () =>
+//     startTransition(() => set({ usersPromise: fetchUsers() }))
+// }));
